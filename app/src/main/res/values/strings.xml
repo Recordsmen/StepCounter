@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">StepCounter</string>
+    <string name="accelerometer">Accelerometer</string>
+    <string name="gyroscope">Gyroscope</string>
+    <string name="steps">Steps</string>
+    <string name="compass">Compass</string>
+    <string name="startStop">Start/Stop</string>
+    <string name="fps">FPS</string>
+    <string name="subject_name">Subject name</string>
+    <string name="permission_rationale">Location data is used as part of the Google Fit API</string>
+    <string name="ok">OK</string>
+</resources>
