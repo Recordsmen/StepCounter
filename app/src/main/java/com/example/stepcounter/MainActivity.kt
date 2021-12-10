@@ -1,9 +1,6 @@
 package com.example.stepcounter
 
 import android.Manifest
-import android.R.attr
-import android.accounts.Account
-import android.accounts.AccountManager
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -15,6 +12,7 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.view.Surface
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -28,22 +26,13 @@ import com.google.android.gms.fitness.Fitness
 import com.google.android.gms.fitness.FitnessOptions
 import com.google.android.gms.fitness.data.DataSource
 import com.google.android.gms.fitness.data.DataType
-import com.google.android.gms.fitness.data.Field
-import com.google.android.gms.fitness.data.Value
-import com.google.android.gms.fitness.request.DataReadRequest
 import com.google.android.gms.fitness.request.DataSourcesRequest
 import com.google.android.gms.fitness.request.OnDataPointListener
 import com.google.android.gms.fitness.request.SensorRequest
 import java.io.File
 import java.io.FileWriter
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.ZoneId
 import java.util.concurrent.TimeUnit
-import com.google.android.gms.common.api.ApiException
 
-import android.R.attr.data
-import com.google.android.gms.tasks.Task
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -82,10 +71,10 @@ class MainActivity : AppCompatActivity() {
     var total = 0
     var selectedFps = 60
     var frameNumber = 0
-    var rotation = "0"
+    var rotation = 0
     var magnetometer = "0"
     lateinit var dateFormat:SimpleDateFormat
-    lateinit var currentDateTime:String
+    lateinit var timestamp:String
     lateinit var file: File
     lateinit var writer: FileWriter
     lateinit var listener: OnDataPointListener
@@ -105,9 +94,12 @@ class MainActivity : AppCompatActivity() {
         compass = findViewById(R.id.tv_compass)
         subject = findViewById(R.id.tv_subjectName)
 
+        dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss:mmm")
+        timestamp = dateFormat.format(Date()) // Find todays date
+
         file = File(
             this.filesDir,
-            "${subject.text}_timestamp_${selectedFps}_raw_sensor_data_and_steps.csv"
+            "${subject.text}_${timestamp}_${selectedFps}_raw_sensor_data_and_steps.csv"
         )
 
         writer = FileWriter(file)
@@ -121,22 +113,29 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onSensorChanged(event: SensorEvent?) {
-
+                    //get current gyroscope data
                 if (event?.sensor?.type == Sensor.TYPE_GYROSCOPE) {
                     gyroscope.text = "x: ${event?.values[0]}"
                     gyroscope.append(" y: ${event?.values[1]}")
                     gyroscope.append(" z: ${event?.values[2]}")
                 }
-
+                    //get current accelerometer data
                 if (event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
                     accelerometer.text = "x:${event?.values[0]}"
                     accelerometer.append(" y:${event?.values[1]}")
                     accelerometer.append(" z:${event?.values[2]}")
                     floatGravity = event.values
-                    //rotation
-                    rotation= windowManager.defaultDisplay.rotation.toString()
+                    //get current rotation
+                    val currentRotation= windowManager.defaultDisplay.rotation
+                    rotation = when (currentRotation){
+                        Surface.ROTATION_0 -> 0
+                        Surface.ROTATION_90 -> 90
+                        Surface.ROTATION_180 -> 180
+                        Surface.ROTATION_270 -> 270
+                        else -> 0
+                    }
                 }
-
+                    //get current magnetometer data
                 if (event?.sensor?.type == Sensor.TYPE_MAGNETIC_FIELD) {
                     floatGeoMagnetic = event.values
                     magnetometer = "x:${floatGeoMagnetic[0]}y:${floatGeoMagnetic[1]}z:${floatGeoMagnetic[2]}"
@@ -147,6 +146,7 @@ class MainActivity : AppCompatActivity() {
                         floatGeoMagnetic
                     )
 
+                    //get compass data
                     SensorManager.getOrientation(floatRotationMatrix, floatOrientation)
 
                     var radians =
@@ -169,7 +169,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-
+        // Step counter listener
         listener = OnDataPointListener { dataPoint ->
             for (field in dataPoint.dataType.fields) {
                 val value = dataPoint.getValue(field)
@@ -179,10 +179,11 @@ class MainActivity : AppCompatActivity() {
                 frameNumber++
                 steps.text = "$total "
                 //Timestamp
-                dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ"	)
-                currentDateTime = dateFormat.format(Date())
+                dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss:mmm")
+                timestamp = dateFormat.format(Date()) // Find todays date
 
-                writer.write("${frameNumber},${currentDateTime},${gyroscope.text}" +
+                //Write data to file
+                writer.write("${frameNumber},${timestamp},${gyroscope.text}" +
                         ",${accelerometer.text},${magnetometer},${rotation},${steps.text}\n")
 
             }
@@ -194,10 +195,12 @@ class MainActivity : AppCompatActivity() {
             arrayOf(
                 Manifest.permission.ACTIVITY_RECOGNITION,
                 Manifest.permission.ACCESS_COARSE_LOCATION,
-                Manifest.permission.ACCESS_FINE_LOCATION
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.GET_ACCOUNTS
             ),
             MY_PERMISSIONS_REQUEST_ACTIVITY_RECOGNITION
         )
+
 
         account = GoogleSignIn.getAccountForExtension(this, fitnessOptions)
 
@@ -228,6 +231,7 @@ class MainActivity : AppCompatActivity() {
             else -> 0
         }
 
+        // Button event
         start.setOnClickListener(View.OnClickListener {
             change = when (change) {
                 false -> buttonStart()
@@ -262,6 +266,7 @@ class MainActivity : AppCompatActivity() {
         change = true
         start.text = "Stop"
 
+        //start collect data for StepCount
         Fitness.getSensorsClient(this, GoogleSignIn.getAccountForExtension(this, fitnessOptions))
             .add(
                 SensorRequest.Builder()
@@ -287,6 +292,7 @@ class MainActivity : AppCompatActivity() {
         change = false
         start.text = "Start"
 
+        //Stop collect data for StepCount
         Fitness.getSensorsClient(this, GoogleSignIn.getAccountForExtension(this, fitnessOptions))
             .remove(listener)
             .addOnSuccessListener {
@@ -322,6 +328,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Manage Sensor data for gyroscope/accelerometer/magnetometer
     fun dataListner() {
         val sensor_gyroscope = manager?.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
         val sensor_accelerometer = manager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
@@ -377,7 +384,7 @@ class MainActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     private fun accessGoogleFit() {
         Log.i(TAG, "Successful permissions from Google Fit")
-        subject.text = account.email
+        subject.text = account.displayName
     }
 }
 
