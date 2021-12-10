@@ -97,14 +97,6 @@ class MainActivity : AppCompatActivity() {
         dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss:mmm")
         timestamp = dateFormat.format(Date()) // Find todays date
 
-        file = File(
-            this.filesDir,
-            "${subject.text}_${timestamp}_${selectedFps}_raw_sensor_data_and_steps.csv"
-        )
-
-        writer = FileWriter(file)
-        writer.write("FrameNumber,Timestamp,GyroData,AccelerometerData,MagnetometerData,Rotation,StepCounter\n")
-
         manager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
         poseListener = object : SensorEventListener {
@@ -138,7 +130,8 @@ class MainActivity : AppCompatActivity() {
                     //get current magnetometer data
                 if (event?.sensor?.type == Sensor.TYPE_MAGNETIC_FIELD) {
                     floatGeoMagnetic = event.values
-                    magnetometer = "x:${floatGeoMagnetic[0]}y:${floatGeoMagnetic[1]}z:${floatGeoMagnetic[2]}"
+                    magnetometer = "x:${floatGeoMagnetic[0]}" +
+                            "y:${floatGeoMagnetic[1]}z:${floatGeoMagnetic[2]}"
                     SensorManager.getRotationMatrix(
                         floatRotationMatrix,
                         null,
@@ -238,7 +231,10 @@ class MainActivity : AppCompatActivity() {
                 true -> buttonStop()
             }
         })
-        Fitness.getSensorsClient(this, GoogleSignIn.getAccountForExtension(this, fitnessOptions))
+        Fitness
+            .getSensorsClient(
+                this, GoogleSignIn.getAccountForExtension(this, fitnessOptions)
+            )
             .findDataSources(
                 DataSourcesRequest.Builder()
                     .setDataTypes(DataType.TYPE_STEP_COUNT_DELTA)
@@ -267,7 +263,10 @@ class MainActivity : AppCompatActivity() {
         start.text = "Stop"
 
         //start collect data for StepCount
-        Fitness.getSensorsClient(this, GoogleSignIn.getAccountForExtension(this, fitnessOptions))
+        Fitness
+            .getSensorsClient(
+                this, GoogleSignIn.getAccountForExtension(this, fitnessOptions)
+            )
             .add(
                 SensorRequest.Builder()
                     // data sets.
@@ -293,7 +292,10 @@ class MainActivity : AppCompatActivity() {
         start.text = "Start"
 
         //Stop collect data for StepCount
-        Fitness.getSensorsClient(this, GoogleSignIn.getAccountForExtension(this, fitnessOptions))
+        Fitness
+            .getSensorsClient(
+                this, GoogleSignIn.getAccountForExtension(this, fitnessOptions)
+            )
             .remove(listener)
             .addOnSuccessListener {
                 Log.i(TAG, "Listener was removed!")
@@ -309,6 +311,14 @@ class MainActivity : AppCompatActivity() {
 
     fun openFile() {
         try {
+            file = File(
+                this.filesDir,
+                "${subject.text}_${timestamp}_${selectedFps}_raw_sensor_data_and_steps.csv"
+            )
+
+            writer = FileWriter(file)
+            writer.write("FrameNumber,Timestamp,GyroData," +
+                    "AccelerometerData,MagnetometerData,Rotation,StepCounter\n")
             when (file.createNewFile()) {
                 true -> Log.i("", "Success")
                 false -> Log.i("", "Error")
