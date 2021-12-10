@@ -164,14 +164,14 @@ class MainActivity : AppCompatActivity() {
                 Log.i(TAG, "Detected DataPoint value: $value")
                 total += value.asInt()
                 frameNumber++
-                steps.text = "$total "
+                steps.text = "Steps: $total "
                 //Timestamp
                 dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss:mmm")
                 timestamp = dateFormat.format(Date()) // Find todays date
 
                 //Write data to file
                 writer.write("${frameNumber},${timestamp},${gyroscope.text}" +
-                        ",${accelerometer.text},${magnetometer},${rotation},${steps.text}\n")
+                        ",${accelerometer.text},${magnetometer},${rotation},${total}\n")
 
             }
         }
