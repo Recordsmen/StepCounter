@@ -261,7 +261,14 @@ class MainActivity : AppCompatActivity() {
     private fun buttonStart(): Boolean {
         change = true
         start.text = "Stop"
+        file = File(
+            this.filesDir,
+            "${subject.text}_${timestamp}_${selectedFps}_raw_sensor_data_and_steps.csv"
+        )
 
+        writer = FileWriter(file)
+        writer.write("FrameNumber,Timestamp,GyroData," +
+                "AccelerometerData,MagnetometerData,Rotation,StepCounter\n")
         //start collect data for StepCount
         Fitness
             .getSensorsClient(
@@ -311,14 +318,6 @@ class MainActivity : AppCompatActivity() {
 
     fun openFile() {
         try {
-            file = File(
-                this.filesDir,
-                "${subject.text}_${timestamp}_${selectedFps}_raw_sensor_data_and_steps.csv"
-            )
-
-            writer = FileWriter(file)
-            writer.write("FrameNumber,Timestamp,GyroData," +
-                    "AccelerometerData,MagnetometerData,Rotation,StepCounter\n")
             when (file.createNewFile()) {
                 true -> Log.i("", "Success")
                 false -> Log.i("", "Error")
