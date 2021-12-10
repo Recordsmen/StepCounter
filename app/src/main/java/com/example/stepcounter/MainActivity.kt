@@ -85,7 +85,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
         start = findViewById(R.id.btn_start_stop)
         spinner_fps = findViewById(R.id.spinner_fps)
         steps = findViewById(R.id.tv_steps)
@@ -93,7 +92,6 @@ class MainActivity : AppCompatActivity() {
         accelerometer = findViewById(R.id.tv_accelerometer)
         compass = findViewById(R.id.tv_compass)
         subject = findViewById(R.id.tv_subjectName)
-
         dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss:mmm")
         timestamp = dateFormat.format(Date()) // Find todays date
 
@@ -138,13 +136,10 @@ class MainActivity : AppCompatActivity() {
                         floatGravity,
                         floatGeoMagnetic
                     )
-
                     //get compass data
                     SensorManager.getOrientation(floatRotationMatrix, floatOrientation)
-
                     var radians =
                         ((Math.toDegrees(floatOrientation[0].toDouble()) + 360).toFloat() % 360)
-
                     compass.text =
                         when (radians) {
                             in 0.0..22.0 -> "Compass: North $radians "
@@ -161,7 +156,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-
         // Step counter listener
         listener = OnDataPointListener { dataPoint ->
             for (field in dataPoint.dataType.fields) {
@@ -181,7 +175,6 @@ class MainActivity : AppCompatActivity() {
 
             }
         }
-
         //AppRequestPermissions
         ActivityCompat.requestPermissions(
             this,
@@ -193,7 +186,6 @@ class MainActivity : AppCompatActivity() {
             ),
             MY_PERMISSIONS_REQUEST_ACTIVITY_RECOGNITION
         )
-
 
         account = GoogleSignIn.getAccountForExtension(this, fitnessOptions)
 
@@ -207,7 +199,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             accessGoogleFit()
         }
-
         //spinnerAdapter
         val adapter: ArrayAdapter<String> =
             ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, fps)
@@ -254,18 +245,17 @@ class MainActivity : AppCompatActivity() {
             .addOnFailureListener { e ->
                 Log.e(TAG, "Find data sources request failed", e)
             }
-
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun buttonStart(): Boolean {
         change = true
+        total = 0
         start.text = "Stop"
         file = File(
             this.filesDir,
             "${subject.text}_${timestamp}_${selectedFps}_raw_sensor_data_and_steps.csv"
         )
-
         writer = FileWriter(file)
         writer.write("FrameNumber,Timestamp,GyroData," +
                 "AccelerometerData,MagnetometerData,Rotation,StepCounter\n")
@@ -288,16 +278,15 @@ class MainActivity : AppCompatActivity() {
             .addOnFailureListener {
                 Log.e(TAG, "Listener not registered.")
             }
-
         openFile()
         dataListner()
+
         return change
     }
 
     private fun buttonStop(): Boolean {
         change = false
         start.text = "Start"
-
         //Stop collect data for StepCount
         Fitness
             .getSensorsClient(
@@ -310,9 +299,9 @@ class MainActivity : AppCompatActivity() {
             .addOnFailureListener {
                 Log.i(TAG, "Listener was not removed.")
             }
-
         closeFile()
         stopDataListner()
+
         return change
     }
 
@@ -322,7 +311,6 @@ class MainActivity : AppCompatActivity() {
                 true -> Log.i("", "Success")
                 false -> Log.i("", "Error")
             }
-
         } catch (e: Exception) {
             Log.e(TAG, "➡️ my error is -  ${e}")
         }
@@ -342,7 +330,6 @@ class MainActivity : AppCompatActivity() {
         val sensor_gyroscope = manager?.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
         val sensor_accelerometer = manager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         val sensor_magnetic = manager?.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
-
         val check_gyroscope = manager?.registerListener(
             poseListener,
             sensor_gyroscope,
@@ -358,7 +345,6 @@ class MainActivity : AppCompatActivity() {
             sensor_magnetic,
             SensorManager.SENSOR_DELAY_UI
         )
-
         if (check_gyroscope == false) {
             gyroscope.text = "Gyroscope don't working"
         }
