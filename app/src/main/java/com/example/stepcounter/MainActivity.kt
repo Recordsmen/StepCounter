@@ -218,7 +218,12 @@ class MainActivity : AppCompatActivity() {
         // Button event
         start.setOnClickListener(View.OnClickListener {
             change = when (change) {
-                false -> buttonStart()
+                false -> {file = File(this.filesDir, "${subject.text}_${timestamp}_${selectedFps}_raw_sensor_data_and_steps.csv"
+                )
+                    writer = FileWriter(file)
+                    writer.write("FrameNumber,Timestamp,GyroData," +
+                            "AccelerometerData,MagnetometerData,Rotation,StepCounter\n")
+                    buttonStart()}
                 true -> buttonStop()
             }
         })
@@ -251,14 +256,8 @@ class MainActivity : AppCompatActivity() {
     private fun buttonStart(): Boolean {
         change = true
         total = 0
+        frameNumber = 0
         start.text = "Stop"
-        file = File(
-            this.filesDir,
-            "${subject.text}_${timestamp}_${selectedFps}_raw_sensor_data_and_steps.csv"
-        )
-        writer = FileWriter(file)
-        writer.write("FrameNumber,Timestamp,GyroData," +
-                "AccelerometerData,MagnetometerData,Rotation,StepCounter\n")
         //start collect data for StepCount
         Fitness
             .getSensorsClient(
