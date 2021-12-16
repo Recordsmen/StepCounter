@@ -1,6 +1,7 @@
 package com.example.stepcounter
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -12,7 +13,6 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
-import android.view.Surface
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -45,7 +45,6 @@ const val MY_PERMISSIONS_REQUEST_ACTIVITY_RECOGNITION = 2
 class MainActivity : AppCompatActivity() {
 
     val fitnessOptions = FitnessOptions.builder()
-        .addDataType(DataType.zzmd)
         .addDataType(DataType.TYPE_STEP_COUNT_DELTA)
         .build()
 
@@ -57,7 +56,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var compass: TextView
     private lateinit var subject: TextView
 
-    private var manager: SensorManager? = null
+    private var sensor: SensorManager? = null
 
     private var floatGravity = FloatArray(3)
     private var floatGeoMagnetic = FloatArray(3)
@@ -69,18 +68,28 @@ class MainActivity : AppCompatActivity() {
     //spinnerValue
     var fps = arrayOf("30", "40", "50", "60", "70")
     var total = 0
-    var selectedFps = 60
     var frameNumber = 0
     var rotation = 0
-    var magnetometer = "0"
-    lateinit var dateFormat:SimpleDateFormat
-    lateinit var timestamp:String
+    var selectedFps:Long = 60
+    var gyroscopeX:Float = 0.0F
+    var gyroscopeY:Float = 0.0F
+    var gyroscopeZ:Float = 0.0F
+    var accelerometerX:Float = 0.0F
+    var accelerometerY:Float = 0.0F
+    var accelerometerZ:Float = 0.0F
+    var magnetometerX:Float = 0.0F
+    var magnetometerY:Float = 0.0F
+    var magnetometerZ:Float = 0.0F
+
+    lateinit var dateFormat: SimpleDateFormat
+    lateinit var timestamp: String
     lateinit var file: File
     lateinit var writer: FileWriter
     lateinit var listener: OnDataPointListener
     lateinit var poseListener: SensorEventListener
     lateinit var account: GoogleSignInAccount
 
+    @SuppressLint("SimpleDateFormat")
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,10 +101,10 @@ class MainActivity : AppCompatActivity() {
         accelerometer = findViewById(R.id.tv_accelerometer)
         compass = findViewById(R.id.tv_compass)
         subject = findViewById(R.id.tv_subjectName)
-        dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss:mmm")
+        dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss:Zmmm")
         timestamp = dateFormat.format(Date()) // Find todays date
 
-        manager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        sensor = getSystemService(Context.SENSOR_SERVICE) as SensorManager
 
         poseListener = object : SensorEventListener {
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
@@ -103,33 +112,41 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onSensorChanged(event: SensorEvent?) {
-                    //get current gyroscope data
+                //get current gyroscope data
                 if (event?.sensor?.type == Sensor.TYPE_GYROSCOPE) {
-                    gyroscope.text = "x: ${event?.values[0]}"
-                    gyroscope.append(" y: ${event?.values[1]}")
-                    gyroscope.append(" z: ${event?.values[2]}")
+                    gyroscopeX = event.values[0]
+                    gyroscopeY = event.values[1]
+                    gyroscopeZ = event.values[2]
+                    gyroscope.text = "Gyroscope x:$gyroscopeX y:$gyroscopeY z:$gyroscopeZ"
                 }
-                    //get current accelerometer data
+                //get current accelerometer data
                 if (event?.sensor?.type == Sensor.TYPE_ACCELEROMETER) {
-                    accelerometer.text = "x:${event?.values[0]}"
-                    accelerometer.append(" y:${event?.values[1]}")
-                    accelerometer.append(" z:${event?.values[2]}")
+                    accelerometerX = event.values[0]
+                    accelerometerY = event.values[1]
+                    accelerometerZ = event.values[2]
+                    accelerometer.text = "Accelerometer x:$accelerometerX y:$accelerometerY z:$accelerometerZ"
                     floatGravity = event.values
                     //get current rotation
-                    val currentRotation= windowManager.defaultDisplay.rotation
-                    rotation = when (currentRotation){
-                        Surface.ROTATION_0 -> 0
-                        Surface.ROTATION_90 -> 90
-                        Surface.ROTATION_180 -> 180
-                        Surface.ROTATION_270 -> 270
-                        else -> 0
+                    val currentRotation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        this@MainActivity.display?.rotation
+                    } else {
+                        TODO("VERSION.SDK_INT < R")
+                    }
+                    rotation = when (currentRotation) {
+                        0 -> 0
+                        1 -> 90
+                        2 -> 180
+                        3 -> 270
+                        else -> -1
                     }
                 }
-                    //get current magnetometer data
+                //get current magnetometer data
                 if (event?.sensor?.type == Sensor.TYPE_MAGNETIC_FIELD) {
                     floatGeoMagnetic = event.values
-                    magnetometer = "x:${floatGeoMagnetic[0]}" +
-                            "y:${floatGeoMagnetic[1]}z:${floatGeoMagnetic[2]}"
+                    magnetometerX = floatGeoMagnetic[0]
+                    magnetometerY = floatGeoMagnetic[1]
+                    magnetometerZ = floatGeoMagnetic[2]
+
                     SensorManager.getRotationMatrix(
                         floatRotationMatrix,
                         null,
@@ -163,16 +180,17 @@ class MainActivity : AppCompatActivity() {
                 Log.i(TAG, "Detected DataPoint field: ${field.name}")
                 Log.i(TAG, "Detected DataPoint value: $value")
                 total += value.asInt()
-                frameNumber++
                 steps.text = "Steps: $total "
                 //Timestamp
-                dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss:mmm")
-                timestamp = dateFormat.format(Date()) // Find todays date
-
+                dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss:'Z'mmm")
+                timestamp = dateFormat.format(Date()) // Find today date
                 //Write data to file
-                writer.write("${frameNumber},${timestamp},${gyroscope.text}" +
-                        ",${accelerometer.text},${magnetometer},${rotation},${total}\n")
-
+                writer.write(
+                    "${frameNumber},${timestamp},${gyroscopeX},${gyroscopeY},${gyroscopeZ}" +
+                            ",${accelerometerX},${accelerometerY},${accelerometerZ}"+
+                            "${magnetometerX},${magnetometerY},${magnetometerZ},${rotation},${total}\n"
+                )
+                frameNumber++
             }
         }
         //AppRequestPermissions
@@ -188,7 +206,6 @@ class MainActivity : AppCompatActivity() {
         )
 
         account = GoogleSignIn.getAccountForExtension(this, fitnessOptions)
-
         if (!GoogleSignIn.hasPermissions(account, fitnessOptions)) {
             GoogleSignIn.requestPermissions(
                 this, // your activity
@@ -206,24 +223,24 @@ class MainActivity : AppCompatActivity() {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinner_fps.adapter = adapter
         spinner_fps.setSelection(3)
-        selectedFps = when (spinner_fps.selectedItem) {
-            "30" -> 33
-            "40" -> 25
-            "50" -> 20
-            "60" -> 16
-            "70" -> 14
-            else -> 0
-        }
+
 
         // Button event
         start.setOnClickListener(View.OnClickListener {
             change = when (change) {
-                false -> {file = File(this.filesDir, "${subject.text}_${timestamp}_${selectedFps}_raw_sensor_data_and_steps.csv"
-                )
+                false -> {
+                    file = File(
+                        this.filesDir,
+                        "${subject.text}_${timestamp}_${spinner_fps.selectedItem}_raw_sensor_data_and_steps.csv"
+                    )
                     writer = FileWriter(file)
-                    writer.write("FrameNumber,Timestamp,GyroData," +
-                            "AccelerometerData,MagnetometerData,Rotation,StepCounter\n")
-                    buttonStart()}
+                    writer.write(
+                        "FrameNumber,Timestamp,GyroscopeX,GyroscopeY,GyroscopeZ," +
+                                "AccelerometerX,AccelerometerY,AccelerometerZ" +
+                                ",MagnetometerX,MagnetometerY,MagnetometerZ,Rotation,StepCounter\n"
+                    )
+                    buttonStart()
+                }
                 true -> buttonStop()
             }
         })
@@ -254,6 +271,16 @@ class MainActivity : AppCompatActivity() {
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun buttonStart(): Boolean {
+
+        selectedFps = when (spinner_fps.selectedItem) {
+            "30" -> 33
+            "40" -> 25
+            "50" -> 20
+            "60" -> 16
+            "70" -> 14
+            else -> 0
+        }
+
         change = true
         total = 0
         frameNumber = 0
@@ -267,7 +294,7 @@ class MainActivity : AppCompatActivity() {
                 SensorRequest.Builder()
                     // data sets.
                     .setDataType(DataType.TYPE_STEP_COUNT_DELTA) // Can't be omitted.
-                    .setSamplingRate(selectedFps.toLong(), TimeUnit.MILLISECONDS)
+                    .setSamplingRate(selectedFps, TimeUnit.MILLISECONDS)
                     .build(),
                 listener
             )
@@ -326,20 +353,20 @@ class MainActivity : AppCompatActivity() {
 
     // Manage Sensor data for gyroscope/accelerometer/magnetometer
     fun dataListner() {
-        val sensor_gyroscope = manager?.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
-        val sensor_accelerometer = manager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-        val sensor_magnetic = manager?.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
-        val check_gyroscope = manager?.registerListener(
+        val sensor_gyroscope = sensor?.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
+        val sensor_accelerometer = sensor?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        val sensor_magnetic = sensor?.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+        val check_gyroscope = sensor?.registerListener(
             poseListener,
             sensor_gyroscope,
             SensorManager.SENSOR_DELAY_UI
         )
-        val check_accelerometer = manager?.registerListener(
+        val check_accelerometer = sensor?.registerListener(
             poseListener,
             sensor_accelerometer,
             SensorManager.SENSOR_DELAY_UI
         )
-        val check_magnetic = manager?.registerListener(
+        val check_magnetic = sensor?.registerListener(
             poseListener,
             sensor_magnetic,
             SensorManager.SENSOR_DELAY_UI
@@ -356,7 +383,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun stopDataListner() {
-        manager?.unregisterListener(poseListener)
+        sensor?.unregisterListener(poseListener)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -378,7 +405,7 @@ class MainActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     private fun accessGoogleFit() {
         Log.i(TAG, "Successful permissions from Google Fit")
-        subject.text = account.displayName
+        subject.text = account.account?.name
     }
 }
 
